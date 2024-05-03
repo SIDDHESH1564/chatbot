@@ -45,7 +45,7 @@ export default function ChatList({
       <div className="w-full h-full flex justify-center items-center">
         <div className="flex flex-col gap-4 items-center">
           <Image
-            src="/ollama.png"
+            src="/yozu.png"
             alt="AI"
             width={60}
             height={60}
