@@ -22,7 +22,7 @@ export interface ChatProps {
 export default function Chat({ messages, input, handleInputChange, handleSubmit, isLoading, error, stop, setSelectedModel, chatId, loadingSubmit }: ChatProps) {
   return (
     <div className="flex flex-col justify-between w-full h-full  ">
-      <ChatTopbar setSelectedModel={setSelectedModel} isLoading={isLoading} chatId={chatId} messages={messages} />
+      {/* <ChatTopbar setSelectedModel={setSelectedModel} isLoading={isLoading} chatId={chatId} messages={messages} /> */}
 
       <ChatList setSelectedModel={setSelectedModel} messages={messages} input={input} handleInputChange={handleInputChange} handleSubmit={handleSubmit} isLoading={isLoading} loadingSubmit={loadingSubmit} error={error} stop={stop} />
 

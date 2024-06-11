@@ -7,22 +7,12 @@ import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { BytesOutputParser } from "@langchain/core/output_parsers";
 import { ChatRequestOptions } from "ai";
 import { Message, useChat } from "ai/react";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 
 export default function Page({ params }: { params: { id: string } }) {
-  const {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit,
-    isLoading,
-    error,
-    stop,
-    setMessages,
-    setInput,
-  } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, isLoading, error, stop, setMessages, setInput } = useChat({
     onResponse: (response) => {
       if (response) {
         setLoadingSubmit(false);
@@ -34,22 +24,9 @@ export default function Page({ params }: { params: { id: string } }) {
     },
   });
   const [chatId, setChatId] = React.useState<string>("");
-  const [selectedModel, setSelectedModel] = React.useState<string>(
-    getSelectedModel()
-  );
-  const [ollama, setOllama] = React.useState<ChatOllama>();
-  const env = process.env.NODE_ENV;
+  const [selectedModel, setSelectedModel] = React.useState<string>(getSelectedModel());
+  const [open, setOpen] = React.useState(false);
   const [loadingSubmit, setLoadingSubmit] = React.useState(false);
-
-  useEffect(() => {
-    if (env === "production") {
-      const newOllama = new ChatOllama({
-        baseUrl: process.env.NEXT_PUBLIC_OLLAMA_URL || "http://127.0.0.1:11434",
-        model: selectedModel,
-      });
-      setOllama(newOllama);
-    }
-  }, [selectedModel]);
 
   React.useEffect(() => {
     if (params.id) {
@@ -67,44 +44,28 @@ export default function Page({ params }: { params: { id: string } }) {
   };
 
   // Function to handle chatting with Ollama in production (client side)
-  const handleSubmitProduction = async (
-    e: React.FormEvent<HTMLFormElement>
-  ) => {
+  const handleSubmitProduction = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    addMessage({ role: "user", content: input, id: chatId });
+    addMessage({ role: "user", content: JSON.stringify({ content: input, related_image_data: null }), id: chatId });
     setInput("");
 
-    if (ollama) {
-      try {
-        const parser = new BytesOutputParser();
+    try {
+      const formData = new FormData();
+      formData.append("query", input);
+      formData.append("isNewSession", "0");
 
-        const stream = await ollama
-          .pipe(parser)
-          .stream(
-            (messages as Message[]).map((m) =>
-              m.role == "user"
-                ? new HumanMessage(m.content)
-                : new AIMessage(m.content)
-            )
-          );
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/chat`, {
+        method: "POST",
+        body: formData,
+      });
+      let responseJson = await response.json();
 
-        const decoder = new TextDecoder();
-
-        let responseMessage = "";
-        for await (const chunk of stream) {
-          const decodedChunk = decoder.decode(chunk);
-          responseMessage += decodedChunk;
-        }
-        setMessages([
-          ...messages,
-          { role: "assistant", content: responseMessage, id: chatId },
-        ]);
-        setLoadingSubmit(false);
-      } catch (error) {
-        toast.error("An error occurred. Please try again.");
-        setLoadingSubmit(false);
-      }
+      setMessages([...messages, { role: "assistant", content: JSON.stringify({ content: responseJson.response, related_image_data: responseJson.related_image_data }), id: responseJson.conv_id }]);
+      setLoadingSubmit(false);
+    } catch (error) {
+      toast.error("An error occurred. Please try again.");
+      setLoadingSubmit(false);
     }
   };
 
@@ -112,24 +73,15 @@ export default function Page({ params }: { params: { id: string } }) {
     e.preventDefault();
     setLoadingSubmit(true);
 
+    if (messages.length === 0) {
+      // Generate a random id for the chat
+      const id = uuidv4();
+      setChatId(id);
+    }
+
     setMessages([...messages]);
 
-    // Prepare the options object with additional body data, to pass the model.
-    const requestOptions: ChatRequestOptions = {
-      options: {
-        body: {
-          selectedModel: selectedModel,
-        },
-      },
-    };
-
-    if (env === "production" && selectedModel !== "REST API") {
-      handleSubmitProduction(e);
-    } else {
-      // use the /api/chat route
-      // Call the handleSubmit function with the options
-      handleSubmit(e, requestOptions);
-    }
+    handleSubmitProduction(e);
   };
 
   // When starting a new chat, append the messages to the local storage
@@ -143,20 +95,7 @@ export default function Page({ params }: { params: { id: string } }) {
 
   return (
     <main className="flex h-[calc(100dvh)] flex-col items-center">
-      <ChatLayout
-        chatId={params.id}
-        setSelectedModel={setSelectedModel}
-        messages={messages}
-        input={input}
-        handleInputChange={handleInputChange}
-        handleSubmit={onSubmit}
-        isLoading={isLoading}
-        loadingSubmit={loadingSubmit}
-        error={error}
-        stop={stop}
-        navCollapsedSize={10}
-        defaultLayout={[30, 160]}
-      />
+      <ChatLayout chatId={params.id} setSelectedModel={setSelectedModel} messages={messages} input={input} handleInputChange={handleInputChange} handleSubmit={onSubmit} isLoading={isLoading} loadingSubmit={loadingSubmit} error={error} stop={stop} navCollapsedSize={100} defaultLayout={[30, 160]} />
     </main>
   );
 }

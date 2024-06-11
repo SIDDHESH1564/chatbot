@@ -1,38 +1,17 @@
 "use client";
 
 import { ChatLayout } from "@/components/chat/chat-layout";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogContent,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import UsernameForm from "@/components/username-form";
 import { getSelectedModel } from "@/lib/model-helper";
-import { ChatOllama } from "@langchain/community/chat_models/ollama";
-import { AIMessage, HumanMessage } from "@langchain/core/messages";
-import { BytesOutputParser } from "@langchain/core/output_parsers";
 import { ChatRequestOptions } from "ai";
-import { Message, useChat } from "ai/react";
+import { useChat } from "ai/react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 
 export default function Home() {
-  const {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit,
-    isLoading,
-    error,
-    stop,
-    setMessages,
-    setInput,
-  } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, isLoading, error, stop, setMessages, setInput } = useChat({
     onResponse: (response) => {
       if (response) {
         setLoadingSubmit(false);
@@ -44,12 +23,8 @@ export default function Home() {
     },
   });
   const [chatId, setChatId] = React.useState<string>("");
-  const [selectedModel, setSelectedModel] = React.useState<string>(
-    getSelectedModel()
-  );
+  const [selectedModel, setSelectedModel] = React.useState<string>(getSelectedModel());
   const [open, setOpen] = React.useState(false);
-  const [ollama, setOllama] = useState<ChatOllama>();
-  const env = process.env.NODE_ENV;
   const [loadingSubmit, setLoadingSubmit] = React.useState(false);
 
   React.useEffect(() => {
@@ -62,18 +37,10 @@ export default function Home() {
   }, [messages, chatId, isLoading, error]);
 
   useEffect(() => {
-    if (env === "production") {
-      const newOllama = new ChatOllama({
-        baseUrl: process.env.NEXT_PUBLIC_OLLAMA_URL || "http://localhost:11434",
-        model: selectedModel,
-      });
-      setOllama(newOllama);
-    }
-
     if (!localStorage.getItem("ollama_user")) {
       setOpen(true);
     }
-  }, [selectedModel]);
+  }, []);
 
   const addMessage = (Message: any) => {
     messages.push(Message);
@@ -82,44 +49,28 @@ export default function Home() {
   };
 
   // Function to handle chatting with Ollama in production (client side)
-  const handleSubmitProduction = async (
-    e: React.FormEvent<HTMLFormElement>
-  ) => {
+  const handleSubmitProduction = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    addMessage({ role: "user", content: input, id: chatId });
+    addMessage({ role: "user", content: JSON.stringify({ content: input, related_image_data: null }), id: chatId });
     setInput("");
 
-    if (ollama) {
-      try {
-        const parser = new BytesOutputParser();
+    try {
+      const formData = new FormData();
+      formData.append("query", input);
+      formData.append("isNewSession", "0");
 
-        const stream = await ollama
-          .pipe(parser)
-          .stream(
-            (messages as Message[]).map((m) =>
-              m.role == "user"
-                ? new HumanMessage(m.content)
-                : new AIMessage(m.content)
-            )
-          );
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/chat`, {
+        method: "POST",
+        body: formData,
+      });
+      let responseJson = await response.json();
 
-        const decoder = new TextDecoder();
-
-        let responseMessage = "";
-        for await (const chunk of stream) {
-          const decodedChunk = decoder.decode(chunk);
-          responseMessage += decodedChunk;
-        }
-        setMessages([
-          ...messages,
-          { role: "assistant", content: responseMessage, id: chatId },
-        ]);
-        setLoadingSubmit(false);
-      } catch (error) {
-        toast.error("An error occurred. Please try again.");
-        setLoadingSubmit(false);
-      }
+      setMessages([...messages, { role: "assistant", content: JSON.stringify({ content: responseJson.response, related_image_data: responseJson.related_image_data }), id: responseJson.conv_id }]);
+      setLoadingSubmit(false);
+    } catch (error) {
+      toast.error("An error occurred. Please try again.");
+      setLoadingSubmit(false);
     }
   };
 
@@ -135,47 +86,17 @@ export default function Home() {
 
     setMessages([...messages]);
 
-    // Prepare the options object with additional body data, to pass the model.
-    const requestOptions: ChatRequestOptions = {
-      options: {
-        body: {
-          selectedModel: selectedModel,
-        },
-      },
-    };
-
-    if (env === "production") {
-      handleSubmitProduction(e);
-    } else {
-      // Call the handleSubmit function with the options
-      handleSubmit(e, requestOptions);
-    }
+    handleSubmitProduction(e);
   };
 
   return (
     <main className="flex h-[calc(100dvh)] flex-col items-center ">
       <Dialog open={open} onOpenChange={setOpen}>
-        <ChatLayout
-          chatId=""
-          setSelectedModel={setSelectedModel}
-          messages={messages}
-          input={input}
-          handleInputChange={handleInputChange}
-          handleSubmit={onSubmit}
-          isLoading={isLoading}
-          loadingSubmit={loadingSubmit}
-          error={error}
-          stop={stop}
-          navCollapsedSize={10}
-          defaultLayout={[30, 160]}
-        />
+        <ChatLayout chatId="" setSelectedModel={setSelectedModel} messages={messages} input={input} handleInputChange={handleInputChange} handleSubmit={onSubmit} isLoading={isLoading} loadingSubmit={loadingSubmit} error={error} stop={stop} navCollapsedSize={100} defaultLayout={[30, 160]} />
         <DialogContent className="flex flex-col space-y-4">
           <DialogHeader className="space-y-2">
-            <DialogTitle>Welcome to Ollama!</DialogTitle>
-            <DialogDescription>
-              Enter your name to get started. This is just to personalize your
-              experience.
-            </DialogDescription>
+            <DialogTitle>Welcome to YoZu!</DialogTitle>
+            <DialogDescription>Enter your name to get started. This is just to personalize your experience.</DialogDescription>
             <UsernameForm setOpen={setOpen} />
           </DialogHeader>
         </DialogContent>
