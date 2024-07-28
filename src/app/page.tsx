@@ -57,10 +57,11 @@ export default function Home() {
 
     try {
       const formData = new FormData();
-      formData.append("query", input);
-      formData.append("isNewSession", "0");
+      formData.append("assistant_id", "asst_JLC7XTONNE4jzcaV1splSTvj");
+      formData.append("file_id", "file-HaHqL0ppcFON5QGifywjel1o");
+      formData.append("message", input);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/chat`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/chat/send`, {
         method: "POST",
         body: formData,
       });

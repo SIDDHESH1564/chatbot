@@ -54,27 +54,27 @@ export function Sidebar({ messages, isCollapsed, isMobile, chatId }: SidebarProp
   }[] => {
     // fetchChatsFromServer
     let chats = Object.keys(localStorage).filter((key) => key.startsWith("chat_"));
-    async function fetchChatsFromServer() {
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/updateAndFetchSessions`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ chats }),
-        });
-        const responseJson = await response.json();
-        if (response.ok) {
-          chats = responseJson.chats;
-          chats.forEach((chat: any) => {
-            localStorage.setItem(`chat_${chat.chatId}`, JSON.stringify(chat));
-          });
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    }
-    fetchChatsFromServer();
+    // async function fetchChatsFromServer() {
+    //   try {
+    //     const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/updateAndFetchSessions`, {
+    //       method: "POST",
+    //       headers: {
+    //         "Content-Type": "application/json",
+    //       },
+    //       body: JSON.stringify({ chats }),
+    //     });
+    //     const responseJson = await response.json();
+    //     if (response.ok) {
+    //       chats = responseJson.chats;
+    //       chats.forEach((chat: any) => {
+    //         localStorage.setItem(`chat_${chat.chatId}`, JSON.stringify(chat));
+    //       });
+    //     }
+    //   } catch (error) {
+    //     console.error(error);
+    //   }
+    // }
+    // fetchChatsFromServer();
 
     if (chats.length === 0) {
       setIsLoading(false);
